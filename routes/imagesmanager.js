@@ -1,6 +1,13 @@
 const router = require('express').Router();
-const { check } = require('express-validator/check');
-const {onAddimage, onLoadImage} = require('../services/imagesmanager');
+const { check, query } = require('express-validator/check');
+const {onAddimage, find} = require('../services/imagesmanager');
+const {onVoteimage} = require('../services/uservote');
+const service = require('../services/imagesmanager');
+const base64Img = require('base64-img');
+const fs = require('fs');
+const path = require('path');
+const uploadDir = path.resolve('uploads');
+const equipDir = path.join(uploadDir ,'foods');
 
 // หน้าลงทะเบียน
 router.post('/addimage', [
@@ -12,23 +19,40 @@ router.post('/addimage', [
 ], async (req, res) => {
     try {
         req.validate();
-        const created = await onAddimage(req.body);
-        res.json(created);
+        //ตรวจสอบ Folder ท่าไม่มีก็ทำการสร้างใหม่
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+        if (!fs.existsSync(equipDir)) fs.mkdirSync(equipDir);
+        // แปลงข้อมูลรูปภาพเป็น Base64
+        req.body.Image_shortcode = base64Img.imgSync(req.body.Image_shortcode, equipDir, `foods-${Date.now()}`).replace(`${equipDir}\\`, '');
+        // res.json({ message: req.body});
+        res.json({ message: await onAddimage(req.body)});
     }
     catch (ex) {
         res.error(ex);
     }
 });
 
-router.post('/loadAllImage'
-, async (req, res) => {
+router.post('/:id', async (req, res) => {
     try {
-        const imageList = await onLoadImage(req.body);
-        res.json(imageList);
+        const item = await service.findOne({ id_table: req.params.id })
+        if (!item) throw new Error('Not found item.');
+        res.json(item);
     }
     catch (ex) {
         res.error(ex);
     }
 });
+
+//แสดงข้อมูลอุปกรณ์
+router.get('/',[
+    query('page').not().isEmpty().isInt().toInt()
+], async (req,res) => {
+    try{
+        req.validate();
+        res.json(await service.find(req.query))
+    }
+    catch(ex){ res.error(ex); }
+});
+
 
 module.exports = router;
