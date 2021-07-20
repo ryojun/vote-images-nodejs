@@ -11,4 +11,14 @@ module.exports = {
             });
         });
     },
+    onLoadVote() {
+        return new Promise((resolve,reject) => {
+            connection.query('SELECT * FROM vote_image', (error,result) => {
+                if (error) return reject(error);
+                if (result.length > 0) {
+                    resolve(result);
+                }
+            })
+        });
+    }
 };
